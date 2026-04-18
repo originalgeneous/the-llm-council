@@ -830,6 +830,30 @@ class TestCLIProviderTimeouts:
         request = GenerateRequest(prompt="test", timeout_seconds=23)
         assert provider._request_timeout(request) == 23.0
 
+    def test_claude_code_cli_effort_flag_is_appended(self):
+        provider = ClaudeCodeCLIProvider(
+            cli_path="/usr/local/bin/claude", effort="max"
+        )
+        cmd = provider._build_command(GenerateRequest(prompt="hi"))
+        assert "--effort" in cmd
+        assert cmd[cmd.index("--effort") + 1] == "max"
+
+    def test_claude_code_cli_effort_omitted_when_unset(self):
+        provider = ClaudeCodeCLIProvider(cli_path="/usr/local/bin/claude")
+        cmd = provider._build_command(GenerateRequest(prompt="hi"))
+        assert "--effort" not in cmd
+
+    def test_claude_code_cli_effort_normalizes_case(self):
+        provider = ClaudeCodeCLIProvider(
+            cli_path="/usr/local/bin/claude", effort="XHigh"
+        )
+        cmd = provider._build_command(GenerateRequest(prompt="hi"))
+        assert cmd[cmd.index("--effort") + 1] == "xhigh"
+
+    def test_claude_code_cli_effort_rejects_invalid(self):
+        with pytest.raises(ValueError, match="Unsupported Claude effort"):
+            ClaudeCodeCLIProvider(cli_path="/usr/local/bin/claude", effort="ultra")
+
     @pytest.mark.asyncio
     async def test_gemini_cli_starts_new_session(self):
         provider = GeminiCLIProvider(cli_path="/opt/homebrew/bin/gemini")

@@ -238,6 +238,18 @@ def _load_provider_configs() -> dict[str, dict[str, Any]]:
     if not isinstance(providers_list, list):
         return {}
 
+    # Known adapter constructor kwargs. Extra keys in config.yaml are ignored
+    # rather than forwarded blindly, so unknown fields don't crash adapters.
+    forwarded_keys = (
+        "api_key",
+        "default_model",
+        "default_flags",   # codex CLI: extra args spliced into `codex exec`
+        "effort",          # claude CLI: --effort {low,medium,high,xhigh,max}
+        "approval_mode",   # gemini CLI: {default,auto_edit,yolo,plan}
+        "cli_path",        # explicit binary path override
+        "timeout",         # per-provider default timeout (seconds)
+    )
+
     result: dict[str, dict[str, Any]] = {}
     for entry in providers_list:
         if not isinstance(entry, dict):
@@ -245,12 +257,9 @@ def _load_provider_configs() -> dict[str, dict[str, Any]]:
         name = entry.get("name")
         if not name or not isinstance(name, str):
             continue
-        # Forward known constructor kwargs only
-        kwargs: dict[str, Any] = {}
-        if "api_key" in entry:
-            kwargs["api_key"] = entry["api_key"]
-        if "default_model" in entry:
-            kwargs["default_model"] = entry["default_model"]
+        kwargs: dict[str, Any] = {
+            key: entry[key] for key in forwarded_keys if key in entry
+        }
         if kwargs:
             result[name] = kwargs
     return result

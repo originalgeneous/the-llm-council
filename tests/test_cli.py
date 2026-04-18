@@ -603,6 +603,48 @@ providers:
             }
         }
 
+    def test_load_provider_configs_forwards_cli_kwargs(self, tmp_path, monkeypatch):
+        """CLI-specific kwargs (default_flags, effort, approval_mode) reach adapters."""
+        monkeypatch.setenv("HOME", str(tmp_path))
+        config_file = tmp_path / ".config" / "llm-council" / "config.yaml"
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text(
+            """\
+providers:
+  - name: codex
+    default_model: gpt-5.4
+    default_flags: "-c model_reasoning_effort=\\"xhigh\\" --sandbox read-only"
+    timeout: 600
+  - name: claude
+    default_model: opus
+    effort: max
+  - name: gemini-cli
+    default_model: gemini-3-pro-preview
+    approval_mode: default
+  - name: ignored_unknown_key
+    default_model: x
+    bogus_field: should_be_dropped
+"""
+        )
+
+        provider_configs = _load_provider_configs()
+
+        assert provider_configs["codex"] == {
+            "default_model": "gpt-5.4",
+            "default_flags": '-c model_reasoning_effort="xhigh" --sandbox read-only',
+            "timeout": 600,
+        }
+        assert provider_configs["claude"] == {
+            "default_model": "opus",
+            "effort": "max",
+        }
+        assert provider_configs["gemini-cli"] == {
+            "default_model": "gemini-3-pro-preview",
+            "approval_mode": "default",
+        }
+        # Unknown fields are silently dropped so adapter constructors don't crash.
+        assert "bogus_field" not in provider_configs["ignored_unknown_key"]
+
     def test_config_no_options(self):
         """Test config with no options shows usage."""
         result = runner.invoke(app, ["config"])

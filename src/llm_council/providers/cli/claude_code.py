@@ -37,6 +37,24 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "sonnet"
 
+# Valid values for the Claude Code CLI --effort flag.
+_VALID_EFFORTS: frozenset[str] = frozenset({"low", "medium", "high", "xhigh", "max"})
+
+
+def _validate_effort(effort: str | None) -> str | None:
+    if effort is None:
+        return None
+    normalized = str(effort).strip().lower()
+    if not normalized:
+        return None
+    if normalized not in _VALID_EFFORTS:
+        valid = ", ".join(sorted(_VALID_EFFORTS))
+        raise ValueError(
+            f"Unsupported Claude effort '{effort}'. Use one of: {valid}"
+        )
+    return normalized
+
+
 # Minimal environment allowlist for subprocess
 _ENV_ALLOWLIST = {
     "PATH",
@@ -135,10 +153,12 @@ class ClaudeCodeCLIProvider(ProviderAdapter):
         self,
         cli_path: str | None = None,
         default_model: str | None = None,
+        effort: str | None = None,
         timeout: int = 120,
     ) -> None:
         self._cli_path = cli_path or shutil.which("claude")
         self._default_model = default_model or DEFAULT_MODEL
+        self._effort = _validate_effort(effort)
         self._timeout = timeout
 
     def _build_command(self, request: GenerateRequest) -> list[str]:
@@ -157,6 +177,8 @@ class ClaudeCodeCLIProvider(ProviderAdapter):
             "--model",
             request.model or self._default_model,
         ]
+        if self._effort:
+            cmd.extend(["--effort", self._effort])
 
         # Build prompt from messages or prompt field
         prompt = ""
