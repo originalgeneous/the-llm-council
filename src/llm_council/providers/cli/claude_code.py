@@ -176,7 +176,11 @@ class ClaudeCodeCLIProvider(ProviderAdapter):
             "-p",  # non-interactive print mode
             "--output-format",
             "json",
-            "--bare",  # skip hooks/LSP/plugins — prevents recursion
+            # NOTE: --bare is intentionally omitted. It blocks OAuth/keychain
+            # auth (only ANTHROPIC_API_KEY is accepted in bare mode). Recursion
+            # is prevented instead by stdin=DEVNULL in the subprocess call and
+            # the minimal environment allowlist which strips Claude Code session
+            # variables.
             "--model",
             request.model or self._default_model,
         ]
