@@ -278,7 +278,10 @@ class GeminiCLIProvider(ProviderAdapter):
         """Copy the minimal Gemini runtime state needed for isolated subprocesses."""
 
         source_dir = Path.home() / ".gemini"
-        for filename in ("projects.json", "google_accounts.json"):
+        # oauth_creds.json holds Login-with-Google tokens; without it the CLI
+        # re-opens the browser auth flow from the isolated HOME and deadlocks
+        # on a [Y/n] stdin prompt.
+        for filename in ("projects.json", "google_accounts.json", "oauth_creds.json"):
             source = source_dir / filename
             target = gemini_dir / filename
             if source.exists():
