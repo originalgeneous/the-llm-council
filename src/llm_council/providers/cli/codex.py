@@ -432,6 +432,7 @@ class CodexCLIProvider(ProviderAdapter):
                 self._cli_path,
                 "login",
                 "status",
+                stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=self._get_subprocess_env(),
@@ -516,10 +517,13 @@ class CodexCLIProvider(ProviderAdapter):
             )
             env = self._get_subprocess_env()
             env["HOME"] = cli_home
-            # Safe: uses argument list, no shell; minimal environment
+            # Safe: uses argument list, no shell; minimal environment.
+            # stdin=DEVNULL prevents the subprocess from inheriting the parent's
+            # stdin, which causes deadlock when council runs inside Claude Code.
             proc = await asyncio.create_subprocess_exec(
                 cmd[0],
                 *cmd[1:],
+                stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=env,

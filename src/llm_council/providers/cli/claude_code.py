@@ -216,10 +216,13 @@ class ClaudeCodeCLIProvider(ProviderAdapter):
 
         cmd = self._build_command(request)
 
-        # Safe: uses argument list via create_subprocess_exec, no shell spawned
+        # Safe: uses argument list via create_subprocess_exec, no shell spawned.
+        # stdin=DEVNULL prevents the subprocess from inheriting the parent's
+        # stdin, which causes deadlock when council runs inside Claude Code.
         proc = await asyncio.create_subprocess_exec(
             cmd[0],
             *cmd[1:],
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=self._get_minimal_env(),

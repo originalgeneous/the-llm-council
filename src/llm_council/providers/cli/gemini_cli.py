@@ -37,7 +37,11 @@ from llm_council.providers.cli._subprocess import terminate_process_tree
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "gemini-3-flash-preview"
+# Empty string means "let the Gemini CLI choose its own default model".
+# Passing a specific model name (e.g. gemini-3-flash-preview) that does not
+# exist for a given auth tier causes a 404 ModelNotFoundError. Omitting -m
+# lets the CLI use whatever model is current and available for the user's plan.
+DEFAULT_MODEL = ""
 # SECURITY: Least-privilege defaults - require approval for actions
 # Older adapter configs used "confirm"/"auto"; normalize them to the
 # current CLI vocabulary to stay backward compatible.
@@ -333,7 +337,9 @@ class GeminiCLIProvider(ProviderAdapter):
 
         cmd = [self._cli_path, "-p", prompt]
         cmd.extend(["--approval-mode", self._approval_mode])
-        cmd.extend(["-m", request.model or self._default_model])
+        model = request.model or self._default_model
+        if model:
+            cmd.extend(["-m", model])
         cmd.extend(["--output-format", "json"])
         return cmd
 
