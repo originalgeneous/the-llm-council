@@ -55,18 +55,18 @@ def _validate_effort(effort: str | None) -> str | None:
     return normalized
 
 
-# Minimal environment allowlist for subprocess.
-# ANTHROPIC_API_KEY is intentionally excluded: when set it overrides
-# the CLI's browser-OAuth login session, causing auth failures if the
-# key has insufficient credits. The CLI session (claude login) is the
-# preferred auth path and does not require this variable.
-_ENV_ALLOWLIST = {
-    "PATH",
-    "HOME",
-    "TERM",
-    "LANG",
-    "LC_ALL",
-}
+# Environment denylist for subprocess.
+# We pass through the full ambient environment so OAuth/keychain auth works
+# (claude.ai login sessions need the full user context). Only telemetry and
+# API key vars are stripped:
+# - ANTHROPIC_API_KEY: when set it overrides the CLI's OAuth session, causing
+#   auth failures if the key has low credits.
+# - OTEL_*/LANGSMITH_*/LANGCHAIN_*: tracing vars that can destabilise or leak
+#   outer-session telemetry into nested invocations.
+# Recursion is prevented by stdin=DEVNULL in the subprocess call, not by
+# stripping env vars.
+_ENV_DENYLIST = {"ANTHROPIC_API_KEY"}
+_ENV_DENYLIST_PREFIXES = ("OTEL_", "LANGSMITH_", "LANGCHAIN_")
 
 
 def _extract_text_payload(payload: Any) -> str:
@@ -204,8 +204,12 @@ class ClaudeCodeCLIProvider(ProviderAdapter):
         return cmd
 
     def _get_minimal_env(self) -> dict[str, str]:
-        """Get minimal environment with only allowlisted variables."""
-        return {k: v for k, v in os.environ.items() if k in _ENV_ALLOWLIST}
+        """Get subprocess environment: full ambient env minus denylisted vars."""
+        return {
+            k: v
+            for k, v in os.environ.items()
+            if k not in _ENV_DENYLIST and not any(k.startswith(p) for p in _ENV_DENYLIST_PREFIXES)
+        }
 
     def _request_timeout(self, request: GenerateRequest) -> float:
         """Return the effective timeout for this request."""
