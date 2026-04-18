@@ -55,11 +55,14 @@ def _validate_effort(effort: str | None) -> str | None:
     return normalized
 
 
-# Minimal environment allowlist for subprocess
+# Minimal environment allowlist for subprocess.
+# ANTHROPIC_API_KEY is intentionally excluded: when set it overrides
+# the CLI's browser-OAuth login session, causing auth failures if the
+# key has insufficient credits. The CLI session (claude login) is the
+# preferred auth path and does not require this variable.
 _ENV_ALLOWLIST = {
     "PATH",
     "HOME",
-    "ANTHROPIC_API_KEY",
     "TERM",
     "LANG",
     "LC_ALL",
