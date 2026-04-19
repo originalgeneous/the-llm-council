@@ -1,0 +1,137 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DocumentReviewOutput",
+  "description": "Output schema for document, plan, proposal, narrative, or spec reviews. Focus: content loss, accuracy drift, citation integrity, internal contradiction. NOT code review — use reviewer schema for code.",
+  "type": "object",
+  "required": ["review_summary", "verdict", "findings", "reasoning"],
+  "properties": {
+    "review_summary": {
+      "type": "string",
+      "minLength": 30,
+      "description": "Brief summary of the review findings"
+    },
+    "review_type": {
+      "type": "string",
+      "enum": ["content_loss", "accuracy_drift", "compression_review", "editorial_review", "plan_review", "spec_review", "other"],
+      "description": "Type of document review performed"
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["approve", "approve_with_comments", "request_changes", "reject"],
+      "description": "Overall review decision"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Confidence in the review (0-100%)"
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "source_document": {"type": "string"},
+        "target_document": {"type": "string"},
+        "sections_reviewed": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "category", "description", "location"],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low", "info"],
+            "description": "Severity of the finding"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "content_loss",
+              "accuracy_drift",
+              "ambiguity",
+              "citation_broken",
+              "citation_missing",
+              "omission",
+              "internal_contradiction",
+              "overstatement",
+              "structural",
+              "interpretation_lost",
+              "provenance_loss",
+              "other"
+            ],
+            "description": "Category of the finding"
+          },
+          "description": {
+            "type": "string",
+            "description": "Clear description of the issue"
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "section": {
+                "type": "string",
+                "description": "Section heading or structural location in the target document"
+              },
+              "claim_or_paragraph": {
+                "type": "string",
+                "description": "Specific claim, paragraph, or sentence being challenged"
+              },
+              "source_reference": {
+                "type": "string",
+                "description": "Corresponding location in the source document, if applicable"
+              }
+            }
+          },
+          "evidence": {
+            "type": "string",
+            "description": "The specific text, data, or fact from the source document that supports this finding"
+          },
+          "risk": {
+            "type": "string",
+            "description": "Concrete consequence of the finding (what decision is mis-informed, what reader is misled, what audit trail breaks)"
+          },
+          "suggested_fix": {
+            "type": "string",
+            "description": "How to address the finding"
+          }
+        }
+      }
+    },
+    "surviving_strengths": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Aspects of the document that are well-preserved or well-written"
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["priority", "recommendation"],
+        "properties": {
+          "priority": {
+            "type": "string",
+            "enum": ["must_fix", "should_fix", "consider", "optional"]
+          },
+          "recommendation": {"type": "string"},
+          "rationale": {"type": "string"}
+        }
+      }
+    },
+    "blocking_issues": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Issues that must be resolved before the document can be relied on"
+    },
+    "reasoning": {
+      "type": "string",
+      "minLength": 50,
+      "description": "Explanation of the review process and key findings"
+    }
+  },
+  "additionalProperties": false
+}

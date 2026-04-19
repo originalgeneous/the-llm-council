@@ -35,6 +35,15 @@ modes:
       anthropic: claude-opus-4-6
       openai: o3-mini
       gemini: gemini-3-pro
+  doc-review:
+    description: "Document/plan/narrative review for content loss, accuracy drift, citation integrity (non-code)"
+    model_pack: harsh_critic
+    schema: doc-review
+    reasoning:
+      enabled: true
+      effort: high
+      budget_tokens: 16384
+      thinking_level: high
 
 default_mode: review
 calls: 3-5
@@ -126,6 +135,32 @@ prompts:
       - What assumptions can be exploited?
       - How would attacks be detected (or not)?
 
+    doc-review: |
+      ## Mode: Document / Plan / Narrative Review (NON-CODE)
+
+      You are reviewing a document, plan, proposal, specification, narrative,
+      or compressed/derived version of a source document. The subject is NOT code.
+
+      Your review should identify:
+      1. Content loss — unique facts, data points, dates, measurements, or quotes
+         that exist in the source but are missing from the target
+      2. Accuracy drift — claims that are subtly wrong, overstated, or weakened
+         versus the source
+      3. Citation integrity — broken, missing, or ambiguous source references
+      4. Internal contradictions — claims that conflict with other claims in
+         the same document
+      5. Interpretation loss — raw data preserved but interpretive context dropped
+      6. Provenance loss — traceability from claim to primary source degraded
+
+      Every finding must cite a specific section/claim in the target document and,
+      where applicable, the corresponding location in the source document. Use
+      the `location.section`, `location.claim_or_paragraph`, and
+      `location.source_reference` fields — NOT `file` or `line`.
+
+      Do NOT treat this as code review. Do NOT return `review_type: "code_quality"`,
+      do NOT suggest "add regression coverage", do NOT reference OWASP, tests,
+      or code complexity. Those fields and templates do not apply.
+
 classification_rules:
   task_signals:
     - review
@@ -154,3 +189,13 @@ classification_rules:
       - code quality
       - maintainability
       - performance
+    doc-review:
+      - document
+      - narrative
+      - compression
+      - content loss
+      - accuracy drift
+      - spec review
+      - plan review
+      - proposal
+      - manuscript

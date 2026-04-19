@@ -129,6 +129,32 @@ prompts:
         model_pack: harsh_critic
         reasoning: "Security adversarial analysis requires thorough critique"
 
+    - task: "Review the compressed v4 narrative against source v3 for clinical content loss"
+      expected:
+        task_type: doc-review
+        risk_level: high
+        complexity: complex
+        subagent_to_run: critic
+        mode: doc-review
+        execution_profile: light_tools
+        budget_class: normal
+        required_capabilities: ["docs-research"]
+        model_pack: harsh_critic
+        reasoning: "Non-code document review — use doc-review mode, not code-review"
+
+    - task: "Review this plan/proposal/spec for omissions and internal contradictions"
+      expected:
+        task_type: doc-review
+        risk_level: medium
+        complexity: normal
+        subagent_to_run: critic
+        mode: doc-review
+        execution_profile: light_tools
+        budget_class: normal
+        required_capabilities: ["docs-research"]
+        model_pack: harsh_critic
+        reasoning: "Document/plan review — use doc-review mode to get proper content-loss schema"
+
 classification_rules:
   # Keywords that suggest specific task types
   task_type_signals:
@@ -161,6 +187,16 @@ classification_rules:
       - check
       - validate
       - audit
+    doc-review:
+      - document review
+      - narrative review
+      - plan review
+      - proposal review
+      - spec review
+      - content loss
+      - accuracy drift
+      - compression review
+      - manuscript review
     test:
       - test
       - verify
