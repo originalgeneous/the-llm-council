@@ -413,9 +413,16 @@ class CodexCLIProvider(ProviderAdapter):
         )
 
     def _stall_after_turn_started_seconds(self, request_timeout: float) -> float:
-        """Return the max silent interval after `turn.started` before fast-failing."""
+        """Return the max silent interval (no stdout activity) before fast-failing.
 
-        return min(45.0, max(15.0, request_timeout * 0.33))
+        Bounded-profile request timeouts (e.g. codex draft = 90s) times the
+        old multiplier (0.5) produced 45s stall thresholds that fired during
+        legitimate reasoning. The silence check already uses last_stdout_at,
+        so this is TRUE consecutive silence — safe to raise. Floor 90s,
+        multiplier 0.9, cap 180s to prevent pathological hangs.
+        """
+
+        return min(180.0, max(90.0, request_timeout * 0.9))
 
     async def _login_status_text(self) -> str | None:
         """Return cached Codex login status output when available."""
@@ -623,18 +630,26 @@ class CodexCLIProvider(ProviderAdapter):
                     await _terminate_live_process(proc)
                     break
 
+                # Use last_stdout_at (time since ANY stdout activity) rather
+                # than turn_started_at (time since turn began). Reasoning models
+                # emit progress events during thinking; those events update
+                # last_stdout_at but the old check ignored them, causing
+                # false-positive stall kills on complex tasks. Fall back to
+                # turn_started_at if last_stdout_at is not yet set.
+                silence_reference = state.last_stdout_at or state.turn_started_at
                 if (
-                    state.turn_started_at is not None
+                    silence_reference is not None
                     and not output
-                    and now - state.turn_started_at
+                    and now - silence_reference
                     >= self._stall_after_turn_started_seconds(timeout)
                 ):
                     await _terminate_live_process(proc)
                     await _drain_reader_tasks(stdout_task, stderr_task)
                     raise RuntimeError(
-                        "Codex CLI stalled after turn.started without producing any answer. "
-                        "This looks like a nested `codex exec` failure rather than a normal "
-                        "slow response."
+                        "Codex CLI stalled: no stdout activity for "
+                        f"{int(self._stall_after_turn_started_seconds(timeout))}s "
+                        "after turn.started. If the task is legitimately slow, "
+                        "increase --timeout; otherwise check for nested-codex issues."
                     )
 
                 if now >= deadline:

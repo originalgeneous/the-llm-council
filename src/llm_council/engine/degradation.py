@@ -190,6 +190,11 @@ class DegradationPolicy:
         error_text = str(error)
         error_type = classify_error(error_text, -1)
 
+        # Keep a repr fallback so "unknown" classifications carry some signal
+        # in the log even when the underlying exception has an empty str()
+        # (e.g. asyncio.TimeoutError()).
+        error_repr_for_log = error_text or f"type={type(error).__name__} repr={error!r}"
+
         # Track retry count
         retry_key = f"{provider}:{phase}"
         current_retries = self._retry_counts.get(retry_key, 0)
@@ -222,11 +227,12 @@ class DegradationPolicy:
 
         if decision.should_log:
             logger.warning(
-                "Provider %s failed in %s: %s (action=%s)",
+                "Provider %s failed in %s: %s (action=%s) error=%r",
                 provider,
                 phase,
                 error_type.value,
                 decision.action.value,
+                error_repr_for_log[:500],
             )
 
         return decision

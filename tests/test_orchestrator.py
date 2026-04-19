@@ -527,8 +527,8 @@ class TestOrchestratorValidation:
             mock_reg.return_value.get_provider.return_value = MagicMock()
             orch = Orchestrator(providers=["gemini-cli"], config=config)
 
-        assert orch._provider_request_timeout_seconds("draft", provider_name="gemini-cli") == 90.0
-        assert orch._provider_request_timeout_seconds("critique", provider_name="gemini-cli") == 60.0
+        assert orch._provider_request_timeout_seconds("draft", provider_name="gemini-cli") == 119.0
+        assert orch._provider_request_timeout_seconds("critique", provider_name="gemini-cli") == 90.0
         assert orch._provider_request_timeout_seconds("synthesis", provider_name="gemini-cli") == 119.0
 
     def test_bounded_runtime_profile_allows_longer_openai_and_claude_caps(self):
@@ -543,7 +543,7 @@ class TestOrchestratorValidation:
         assert orch._provider_request_timeout_seconds("critique", provider_name="openai") == 30.0
         assert orch._provider_request_timeout_seconds("synthesis", provider_name="openai") == 45.0
         assert orch._provider_request_timeout_seconds("draft", provider_name="claude") == 59.0
-        assert orch._provider_request_timeout_seconds("critique", provider_name="claude") == 45.0
+        assert orch._provider_request_timeout_seconds("critique", provider_name="claude") == 59.0
         assert orch._provider_request_timeout_seconds("synthesis", provider_name="claude") == 59.0
 
 
@@ -712,9 +712,9 @@ class TestOrchestratorRuntimeTruthfulness:
                 "synthesis": 45.0,
             },
             "claude": {
-                "draft": 60.0,
-                "critique": 45.0,
-                "synthesis": 60.0,
+                "draft": 119.0,
+                "critique": 90.0,
+                "synthesis": 119.0,
             },
             "vertex-ai": {
                 "draft": 60.0,

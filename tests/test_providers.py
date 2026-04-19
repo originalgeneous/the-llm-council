@@ -1309,7 +1309,7 @@ class TestCLIProviderTimeouts:
                 "llm_council.providers.cli.codex._terminate_live_process",
                 side_effect=_fake_terminate,
             ) as mock_terminate,
-            pytest.raises(RuntimeError, match="stalled after turn.started"),
+            pytest.raises(RuntimeError, match="Codex CLI stalled"),
         ):
             asyncio.create_task(_emit_stdout())
             await provider.generate(GenerateRequest(prompt="test", timeout_seconds=5))

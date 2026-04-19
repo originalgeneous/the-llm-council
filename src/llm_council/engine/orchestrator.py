@@ -1626,16 +1626,24 @@ class Orchestrator:
                 "synthesis": 30.0,
             }
             if provider_name in {"codex", "codex-cli"}:
+                # Codex with gpt-5.4 xhigh + schema-constrained synthesis
+                # regularly takes 90-180s. Previous 90/60/90 caused
+                # stall-detection false-positives.
                 bounded_caps = {
-                    "draft": 90.0,
-                    "critique": 60.0,
-                    "synthesis": 90.0,
+                    "draft": 150.0,
+                    "critique": 120.0,
+                    "synthesis": 180.0,
                 }
             elif provider_name in {"claude", "claude-code"}:
+                # Claude CLI via OAuth has similar latency characteristics to
+                # codex (~5s subprocess startup, cache creation, thinking,
+                # potential JSON-mode retry on schema-mismatched draft).
+                # Previous 60/45/60 caps caused asyncio TimeoutError on most
+                # non-trivial prompts.
                 bounded_caps = {
-                    "draft": 60.0,
-                    "critique": 45.0,
-                    "synthesis": 60.0,
+                    "draft": 120.0,
+                    "critique": 90.0,
+                    "synthesis": 150.0,
                 }
             elif provider_name in {"openai", "anthropic", "openrouter"}:
                 bounded_caps = {
@@ -1650,10 +1658,11 @@ class Orchestrator:
                     "synthesis": 60.0,
                 }
             elif provider_name == "gemini-cli":
+                # Parity with claude/codex after the same stall-latency audit.
                 bounded_caps = {
-                    "draft": 90.0,
-                    "critique": 60.0,
-                    "synthesis": 120.0,
+                    "draft": 120.0,
+                    "critique": 90.0,
+                    "synthesis": 150.0,
                 }
             return max(min(base_timeout, bounded_caps.get(phase, base_timeout)), 1.0)
 
