@@ -532,6 +532,7 @@ council version                     # Show installed version
 
 # Options
 --mode             Agent mode (impl/arch/test for drafter, review/security for critic, etc.)
+--domain           Subject-matter domain addendum (e.g., medical); layered onto the active mode
 --providers, -p    Comma-separated provider list
 --models, -m       Comma-separated OpenRouter model IDs for multi-model council
 --files, -f        File paths as context (repeatable or comma-separated; 50KB/file, 200KB total)
@@ -568,6 +569,24 @@ council run critic --mode security -f src/payment.py "Audit payment handler"
 ```
 
 Limits: 50KB per file, 200KB total. Files exceeding limits are truncated with a warning.
+
+### Domain Addenda
+
+`--domain` layers a subject-matter prompt addendum on top of the active mode, so the
+same lenses (`review`, `security`, …) can be specialized without new modes or schemas.
+
+```bash
+# Clinical-investigation lens on a critic review: source-authority grounding,
+# proper-noun hallucination checks, clinical-safety framing, trial-structure
+# checks, cross-source consistency, evidence-quality grading, and differential
+# reasoning.
+council run critic --mode review --domain medical \
+  -f amendment.md -f clinic_note.md -f labs.md \
+  "Review for content loss and cross-source drift"
+```
+
+Available domains live in `src/llm_council/domains/` (currently `general`, `medical`).
+Adding a new domain is a single YAML file.
 
 ## Development
 

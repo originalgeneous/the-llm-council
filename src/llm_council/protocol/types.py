@@ -91,6 +91,14 @@ class CouncilConfig(BaseModel):
         default=None,
         description="Agent mode for consolidated agents (e.g., 'impl', 'arch', 'review')",
     )
+    domain: str | None = Field(
+        default=None,
+        description=(
+            "Subject-matter domain addendum (e.g., 'medical'). Layers a domain-specific "
+            "prompt addendum onto the active mode. See `src/llm_council/domains/` for "
+            "available options; `None` or 'general' is a no-op."
+        ),
+    )
     temperature: float | None = Field(
         default=None,
         ge=0.0,
@@ -182,6 +190,10 @@ class CouncilRequest(BaseModel):
     mode: str | None = Field(
         default=None,
         description="Agent mode for consolidated agents",
+    )
+    domain: str | None = Field(
+        default=None,
+        description="Subject-matter domain addendum (e.g., 'medical').",
     )
     follow_router: bool = Field(
         default=False,

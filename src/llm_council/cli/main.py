@@ -313,6 +313,16 @@ def run(
         str | None,
         typer.Option("--mode", help="Agent mode (e.g., impl/arch/test for drafter)"),
     ] = None,
+    domain: Annotated[
+        str | None,
+        typer.Option(
+            "--domain",
+            help=(
+                "Subject-matter domain addendum (e.g., medical). "
+                "See src/llm_council/domains/ for available options."
+            ),
+        ),
+    ] = None,
     providers: Annotated[
         str | None,
         typer.Option("--providers", "-p", help="Comma-separated provider list"),
@@ -503,6 +513,16 @@ def run(
         console.print("[red]Error:[/red] --route can only be used with the router subagent")
         raise typer.Exit(1)
 
+    if domain:
+        from llm_council.domains import get_domain_addendum, list_domains
+
+        try:
+            get_domain_addendum(domain)
+        except (FileNotFoundError, ValueError) as exc:
+            available = ", ".join(sorted(list_domains()))
+            console.print(f"[red]Error:[/red] {exc} (available: {available})")
+            raise typer.Exit(1) from exc
+
     # Show deprecation warning
     if was_deprecated and not output_json:
         _print(
@@ -538,6 +558,7 @@ def run(
 
         _print(f"[bold]Dry run:[/bold] would execute {resolved_agent}")
         _print(f"  Mode: {resolved_mode or 'default'}")
+        _print(f"  Domain: {domain or 'general'}")
         _print(f"  Providers: {', '.join(provider_list)}")
         _print(f"  Models: {', '.join(model_list) if model_list else 'default'}")
         _print(f"  Timeout: {effective_timeout}s")
@@ -586,6 +607,7 @@ def run(
             enable_health_check=False,
             enable_graceful_degradation=enable_degradation,
             mode=resolved_mode,
+            domain=domain,
             temperature=temperature,
             max_tokens=max_tokens,
             runtime_profile=runtime_profile,

@@ -21,7 +21,15 @@ import logging
 import math
 import re
 import time
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Mapping, Sequence
+from collections.abc import (
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Iterable,
+    Iterator,
+    Mapping,
+    Sequence,
+)
 from contextlib import contextmanager
 from typing import (
     Any,
@@ -285,6 +293,13 @@ class OrchestratorConfig(BaseModel):
     mode: str | None = Field(
         default=None,
         description="Subagent mode override (e.g. review/security, plan/assess).",
+    )
+    domain: str | None = Field(
+        default=None,
+        description=(
+            "Subject-matter domain addendum (e.g. 'medical'). Layers a domain-specific "
+            "prompt addendum onto the active mode."
+        ),
     )
     temperature: float | None = Field(
         default=None,
@@ -729,6 +744,7 @@ class Orchestrator:
 
         if self._task is None or self._subagent_config is None:
             raise RuntimeError("Orchestrator.run must be called before critique.")
+        task = self._task
 
         candidates = await self._candidate_providers_for_phase("critique")
         self._record_phase_provider_candidates("critique", [name for name, _adapter in candidates])
@@ -749,7 +765,7 @@ class Orchestrator:
                 phase="critique",
                 system_prompt=system_prompt,
                 prompt_builder=lambda profile: self._format_critique_prompt(
-                    self._task,
+                    task,
                     drafts,
                     context_override=self._phase_context_override,
                     draft_limit=profile.get("draft_limit"),
@@ -819,6 +835,7 @@ class Orchestrator:
 
         if self._task is None or self._subagent_config is None:
             raise RuntimeError("Orchestrator.run must be called before synthesis.")
+        task = self._task
 
         candidates = await self._candidate_providers_for_phase("synthesis")
         self._record_phase_provider_candidates("synthesis", [name for name, _adapter in candidates])
@@ -845,15 +862,19 @@ class Orchestrator:
                 use_raw_drafts = bool(errors) and any(
                     handoff.get("findings") for handoff in self._draft_handoffs.values()
                 )
-                user_prompt, _prompt_meta = self._select_prompt_profile(
-                    provider_name=provider_name,
-                    phase="synthesis",
-                    system_prompt=system_prompt,
-                    prompt_builder=lambda profile, *,
-                    _errors=tuple(errors),
-                    _use_raw_drafts=use_raw_drafts,
-                    _inline_schema=not supports_structured_output: self._format_synthesis_prompt(
-                        task=self._task,
+                _errors_snapshot: tuple[str, ...] = tuple(errors)
+                _use_raw_drafts_snapshot: bool = use_raw_drafts
+                _inline_schema_snapshot: bool = not supports_structured_output
+
+                def _build_synthesis_prompt(
+                    profile: Mapping[str, int | None],
+                    *,
+                    _errors: tuple[str, ...] = _errors_snapshot,
+                    _use_raw_drafts: bool = _use_raw_drafts_snapshot,
+                    _inline_schema: bool = _inline_schema_snapshot,
+                ) -> str:
+                    return self._format_synthesis_prompt(
+                        task=task,
                         drafts=drafts,
                         critique=critique,
                         schema=schema,
@@ -868,7 +889,13 @@ class Orchestrator:
                         omit_drafts=bool(profile.get("omit_drafts")),
                         inline_schema=_inline_schema,
                         omit_context=bool(profile.get("omit_context")),
-                    ),
+                    )
+
+                user_prompt, _prompt_meta = self._select_prompt_profile(
+                    provider_name=provider_name,
+                    phase="synthesis",
+                    system_prompt=system_prompt,
+                    prompt_builder=_build_synthesis_prompt,
                 )
 
                 request = GenerateRequest(
@@ -888,7 +915,7 @@ class Orchestrator:
                     reasoning=self._reasoning,
                 )
 
-                if supports_structured_output:
+                if supports_structured_output and schema is not None:
                     request.structured_output = StructuredOutputConfig(
                         json_schema=schema,
                         name=self._subagent_name or "council_output",
@@ -1193,7 +1220,7 @@ class Orchestrator:
             requested_capabilities=self._config.required_capabilities,
         )
         self._system_prompt = get_effective_system_prompt(
-            self._subagent_config, self._resolved_mode
+            self._subagent_config, self._resolved_mode, self._config.domain
         )
         if self._config.model_pack:
             self._resolved_model_pack = self._config.model_pack
@@ -1226,6 +1253,7 @@ class Orchestrator:
         self._execution_plan = {
             "subagent": subagent,
             "mode": self._resolved_mode,
+            "domain": self._config.domain,
             "schema_name": self._schema_name,
             "schema_source": self._schema_source,
             "model_pack": self._resolved_model_pack,
@@ -3013,7 +3041,7 @@ class Orchestrator:
         }
 
     @contextmanager
-    def _temporary_context_override(self, context_override: str | None):
+    def _temporary_context_override(self, context_override: str | None) -> Iterator[None]:
         """Temporarily swap the configured system context for prompt rendering."""
 
         original_prepared = self._prepared_reference_context

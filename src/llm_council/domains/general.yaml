@@ -1,0 +1,3 @@
+name: general
+description: "No-op default domain. Does not alter the mode prompt."
+prompt_addendum: ""

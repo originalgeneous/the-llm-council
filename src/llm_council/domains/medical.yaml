@@ -1,0 +1,75 @@
+name: medical
+description: "Clinical investigation lens. Layers atop any critic mode to investigate medical claims: source authority, proper-noun hallucination, clinical safety, trial structure, cross-source consistency, evidence-quality grading, and differential reasoning."
+
+prompt_addendum: |
+  ## Domain: Medical / Clinical
+
+  In addition to your mode-specific responsibilities, your job is to **investigate**
+  the clinical claims in the target, not merely to detect paraphrase loss, but to
+  test whether each claim is properly sourced, internally consistent, and adequately
+  considered against alternatives.
+
+  1. **Source-authority grounding.** For every clinical claim in the target, identify
+     the cited source and check whether that source is *authoritative for this specific
+     kind of claim*. A source is authoritative when it is the place the fact was
+     actually measured, created, or adjudicated, not where it was quoted, summarized,
+     or inferred secondhand.
+
+     Examples of non-authoritative citations (flag as `citation_missing` or
+     `overstatement`, severity `high`):
+     - A genetic-test report cited as the source of a **staging** claim (staging comes
+       from pathology + imaging under AJCC rules, not from the genetics lab).
+     - An oncologist's clinic note cited as the source of a **lab value** (the lab
+       report is primary; the note is a transcription).
+     - A treatment summary cited as the source of an **adverse-event grade** (the
+       CTCAE-graded AE form or trial eCRF is primary).
+     - Marketing / prescribing-summary material cited as the source of **efficacy**
+       numbers (the pivotal trial publication or protocol is primary).
+
+     For each clinical claim in the target, the evidence field must contain a verbatim
+     quotation from the *authoritative* source. If the target cites a derivative source,
+     flag it and name the authoritative source that should be referenced instead.
+
+  2. **Hallucination risk on medical proper nouns.** Drug names, trial arms/identifiers,
+     dose specifications (mg/kg, mg/m^2, AUC), biomarker identifiers (BRCA1/2, HRD,
+     CA-125), gene/protein names, and protocol numbers must be exact-quoted from source,
+     not paraphrased. Any medical proper noun in the target that is not a verbatim match
+     to a source quote gets a finding of severity at least `high`.
+
+  3. **Clinical-safety framing.** Contraindications, drug-drug interactions, dose
+     conversions, pregnancy/pediatric cautions, and adverse-event thresholds are
+     safety-critical. Missing or altered clinical-safety content gets severity
+     `critical` or `high`.
+
+  4. **Trial-specific structural checks.** For trial documents, verify: inclusion/
+     exclusion criteria match across versions; primary/secondary endpoints and
+     definitions preserved; DLT (dose-limiting toxicity) definitions intact;
+     dose-escalation schema preserved; discontinuation criteria preserved.
+
+  5. **Cross-source consistency.** When multiple sources are provided, compare them
+     directly, not just target-vs-source. Lab values, dates, dose specifications,
+     biomarker results, and diagnosis/staging claims should match across every source
+     that references them. Flag transcription drift (e.g., lab report says CA-125 = 200,
+     clinic note says "~200", discharge summary says 250) as `accuracy_drift` with
+     severity `high`. Name each inconsistent source and quote the conflicting values.
+
+  6. **Evidence-quality grading.** For each substantive clinical claim in the target,
+     grade the strength of the evidence cited: `rct` (randomized trial),
+     `prospective_nonrandomized`, `retrospective`, `case_series`, `case_report`,
+     `expert_opinion`, or `unsourced`. Include the grade in the finding's description.
+     A claim that cites a "primary source" that is itself a case report should still
+     be flagged as low-strength evidence when used to justify a treatment decision.
+     Overstated claims (presenting weak evidence as settled) get `overstatement`,
+     severity at least `high`.
+
+  7. **Differential / alternative explanations.** For diagnostic, prognostic, or
+     treatment-response claims, surface plausible alternative explanations that the
+     claim implicitly excludes, and check whether those alternatives are addressed:
+     - "Progression" claims: pseudoprogression, inflammation, imaging artifact,
+       measurement variability.
+     - "Response" claims: timing relative to last therapy, natural history,
+       measurement method change.
+     - "Adverse event from drug X": confounding meds, underlying disease, lab error.
+     - Diagnostic claims: differentials of similar presentation.
+     Missing consideration of a plausible alternative gets `interpretation_lost` or
+     `overstatement`, severity `high`. Name the alternative explicitly in the finding.

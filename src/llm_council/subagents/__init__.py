@@ -27,6 +27,7 @@ from llm_council.config.models import (
     normalize_model_pack,
     resolve_model_pack,
 )
+from llm_council.domains import get_domain_addendum
 
 # ============================================================================
 # Subagent Configuration Models (Issue #11)
@@ -235,8 +236,12 @@ def get_effective_schema(config: dict[str, Any], mode: str | None = None) -> str
     return schema if isinstance(schema, str) else None
 
 
-def get_effective_system_prompt(config: dict[str, Any], mode: str | None = None) -> str:
-    """Get the effective system prompt, including mode-specific additions."""
+def get_effective_system_prompt(
+    config: dict[str, Any],
+    mode: str | None = None,
+    domain: str | None = None,
+) -> str:
+    """Get the effective system prompt, including mode-specific and domain additions."""
 
     prompts = config.get("prompts", {})
     parts: list[str] = []
@@ -249,6 +254,10 @@ def get_effective_system_prompt(config: dict[str, Any], mode: str | None = None)
         mode_prompt = prompts.get("mode_prompts", {}).get(resolved_mode)
         if isinstance(mode_prompt, str) and mode_prompt.strip():
             parts.append(mode_prompt.strip())
+
+    addendum = get_domain_addendum(domain)
+    if addendum:
+        parts.append(addendum)
 
     return "\n\n".join(parts)
 
