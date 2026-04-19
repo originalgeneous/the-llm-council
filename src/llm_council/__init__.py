@@ -6,9 +6,9 @@ import re
 from pathlib import Path
 
 try:
-    import tomllib
+    import tomllib  # type: ignore[import-not-found, unused-ignore]
 except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
-    tomllib = None
+    tomllib = None  # type: ignore[assignment, unused-ignore]
 
 from .council import Council
 from .engine.orchestrator import CostEstimate, CouncilResult, OrchestratorConfig

@@ -821,9 +821,9 @@ class TestCLIProviderTimeouts:
         request = GenerateRequest(prompt="test", timeout_seconds=17)
         assert provider._request_timeout(request) == 17.0
 
-    def test_gemini_cli_defaults_to_supported_fast_model(self):
+    def test_gemini_cli_defaults_to_pro_preview(self):
         provider = GeminiCLIProvider(cli_path="/opt/homebrew/bin/gemini")
-        assert provider._default_model == "gemini-3-flash-preview"
+        assert provider._default_model == "gemini-3-pro-preview"
 
     def test_claude_code_cli_uses_request_timeout(self):
         provider = ClaudeCodeCLIProvider(cli_path="/Users/kozman/.local/bin/claude")
